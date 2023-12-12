@@ -3,20 +3,27 @@ import NDK, {
   NDKFilter,
   NDKSubscriptionCacheUsage,
   ProfilePointer,
-} from "@nostr-dev-kit/ndk";
-import { ndkAdapter } from "@nostr-fetch/adapter-ndk";
-import { Elysia, t } from "elysia";
-import { NostrFetcher, normalizeRelayUrlSet } from "nostr-fetch";
-import { nip19 } from "nostr-tools";
-import { Database } from "bun:sqlite";
+} from '@nostr-dev-kit/ndk';
+import { ndkAdapter } from '@nostr-fetch/adapter-ndk';
+import { Elysia, t } from 'elysia';
+import { NostrFetcher, normalizeRelayUrlSet } from 'nostr-fetch';
+import { nip19 } from 'nostr-tools';
 
 let ndk: NDK;
 let fetcher: NostrFetcher;
 
+const FETCH_LIMIT = 20;
+
 const app = new Elysia()
   .onStart(async () => {
+    console.log(Bun.env.CONFIG_DIR);
+    console.log(Bun.env.PUBKEY);
+    console.log(Bun.env.PRIVKEY);
+    console.log(Bun.env.BUNKER);
+    console.log(Bun.env.OUTBOX);
+
     /*
-    const db = new Database(`${Bun.env.configdir}/lume_v2.db`, {
+    const db = new Database(`${Bun.env.CONFIG_DIR}/lume_v2.db`, {
       create: false,
       readonly: false,
       readwrite: true,
@@ -24,23 +31,23 @@ const app = new Elysia()
     */
 
     const explicitRelayUrls = normalizeRelayUrlSet([
-      "wss://relay.damus.io",
-      "wss://relay.nostr.band",
-      "wss://nos.lol",
-      "wss://nostr.mutinywallet.com",
+      'wss://relay.damus.io',
+      'wss://relay.nostr.band',
+      'wss://nos.lol',
+      'wss://nostr.mutinywallet.com',
     ]);
 
     // #TODO: user should config outbox relays
-    const outboxRelayUrls = normalizeRelayUrlSet(["wss://purplepag.es"]);
+    const outboxRelayUrls = normalizeRelayUrlSet(['wss://purplepag.es']);
 
     // #TODO: user should config blacklist relays
-    const blacklistRelayUrls = normalizeRelayUrlSet(["wss://brb.io"]);
+    const blacklistRelayUrls = normalizeRelayUrlSet(['wss://brb.io']);
 
     ndk = new NDK({
       explicitRelayUrls,
       outboxRelayUrls,
       blacklistRelayUrls,
-      enableOutboxModel: true,
+      enableOutboxModel: false,
       autoConnectUserRelays: true,
       autoFetchUserMutelist: true,
       // clientName: 'Lume',
@@ -52,98 +59,65 @@ const app = new Elysia()
     // start fetcher instance
     fetcher = NostrFetcher.withCustomPool(ndkAdapter(ndk));
   })
-  .get("/", () => "Use Lume to interact with nstation")
-  .get(
-    "/getUserProfile",
-    async ({ set, body }) => {
-      let pubkey: string = body.pubkey;
+  .get('/', () => 'Use Lume to interact with nstation')
+  .get('/users/:id/profile', async ({ set, params: { id } }) => {
+    let pubkey: string = id;
 
-      if (body.pubkey.startsWith("npub1")) {
-        pubkey = nip19.decode(body.pubkey).data as string;
-      }
-
-      if (body.pubkey.startsWith("nprofile1")) {
-        const decoded = nip19.decode(body.pubkey).data as ProfilePointer;
-        pubkey = decoded.pubkey;
-      }
-
-      const user = ndk.getUser({ pubkey });
-      const profile = await user.fetchProfile();
-
-      if (!profile) {
-        set.status = 404;
-        throw new Error("Not found");
-      }
-
-      return profile;
-    },
-    { body: t.Object({ pubkey: t.String() }) }
-  )
-  .get(
-    "/getUserContacts",
-    async ({ set, body }) => {
-      let pubkey: string = body.pubkey;
-
-      if (body.pubkey.startsWith("npub1")) {
-        pubkey = nip19.decode(body.pubkey).data as string;
-      }
-
-      if (body.pubkey.startsWith("nprofile1")) {
-        const decoded = nip19.decode(body.pubkey).data as ProfilePointer;
-        pubkey = decoded.pubkey;
-      }
-
-      const user = ndk.getUser({ pubkey });
-      const contacts = [...(await user.follows())].map((user) => user.pubkey);
-
-      if (!contacts) {
-        set.status = 404;
-        throw new Error("Not found");
-      }
-
-      return contacts;
-    },
-    { body: t.Object({ pubkey: t.String() }) }
-  )
-  .get(
-    "/getEventById",
-    async ({ set, body }) => {
-      const event = await ndk.fetchEvent(body.id, {
-        cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
-      });
-
-      if (!event) {
-        set.status = 404;
-        throw new Error("Not found");
-      }
-
-      return event.rawEvent();
-    },
-    { body: t.Object({ id: t.String() }) }
-  )
-  .get(
-    "/getEventByFilter",
-    async ({ set, body }) => {
-      const filter: NDKFilter = JSON.parse(body.filter);
-      const event = await ndk.fetchEvent(filter, {
-        cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
-      });
-
-      if (!event) {
-        set.status = 404;
-        throw new Error("Not found");
-      }
-
-      return event.rawEvent();
-    },
-    {
-      body: t.Object({
-        filter: t.String(),
-      }),
+    if (pubkey.startsWith('npub1')) {
+      pubkey = nip19.decode(pubkey).data as string;
     }
-  )
+
+    if (pubkey.startsWith('nprofile1')) {
+      const decoded = nip19.decode(pubkey).data as ProfilePointer;
+      pubkey = decoded.pubkey;
+    }
+
+    const user = ndk.getUser({ pubkey });
+    const profile = await user.fetchProfile();
+
+    if (!profile) {
+      set.status = 404;
+      throw new Error('Not found');
+    }
+
+    return profile;
+  })
+  .get('/users/:id/contacts', async ({ set, params: { id } }) => {
+    let pubkey: string = id;
+
+    if (pubkey.startsWith('npub1')) {
+      pubkey = nip19.decode(pubkey).data as string;
+    }
+
+    if (pubkey.startsWith('nprofile1')) {
+      const decoded = nip19.decode(pubkey).data as ProfilePointer;
+      pubkey = decoded.pubkey;
+    }
+
+    const user = ndk.getUser({ pubkey });
+    const contacts = [...(await user.follows())].map((user) => user.pubkey);
+
+    if (!contacts) {
+      set.status = 404;
+      throw new Error('Not found');
+    }
+
+    return contacts;
+  })
+  .get('/events/:id', async ({ set, params: { id } }) => {
+    const event = await ndk.fetchEvent(id, {
+      cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
+    });
+
+    if (!event) {
+      set.status = 404;
+      throw new Error('Not found');
+    }
+
+    return event.rawEvent();
+  })
   .get(
-    "/getInfiniteEvents",
+    '/events/all',
     async ({ set, body }) => {
       const relays = [...ndk.pool.relays.values()].map((el) => el.url);
       const filter: NDKFilter = JSON.parse(body.filter);
@@ -154,7 +128,7 @@ const app = new Elysia()
       const events = await fetcher.fetchLatestEvents(
         relays,
         filter,
-        body.limit,
+        body.limit || FETCH_LIMIT,
         {
           asOf: body.pageParam === 0 ? undefined : body.pageParam,
         }
@@ -162,15 +136,14 @@ const app = new Elysia()
 
       if (!events) {
         set.status = 404;
-        throw new Error("Not found");
+        throw new Error('Not found');
       }
 
       if (body.dedup) {
         for (const event of events) {
-          const tags = event.tags.filter((el) => el[0] === "e");
+          const tags = event.tags.filter((el) => el[0] === 'e');
           if (tags && tags.length > 0) {
-            const rootId =
-              tags.filter((el) => el[3] === "root")[1] ?? tags[0][1];
+            const rootId = tags.filter((el) => el[3] === 'root')[1] ?? tags[0][1];
             if (rootIds.has(rootId)) return dedupQueue.add(event.id);
             rootIds.add(rootId);
           }
@@ -186,18 +159,96 @@ const app = new Elysia()
     {
       body: t.Object({
         filter: t.String(),
-        limit: t.Number(),
+        limit: t.Optional(t.Number()),
         pageParam: t.Number(),
         dedup: t.Optional(t.Boolean()),
       }),
     }
   )
+  .post('/events/:id/repost', async ({ set, params: { id } }) => {
+    if (!ndk.signer) {
+      set.status = 401;
+      throw new Error('NDK Signer is required');
+    }
+
+    const event = await ndk.fetchEvent(id, {
+      cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
+    });
+    const repost = await event?.repost(true);
+
+    return repost?.rawEvent();
+  })
   .post(
-    "/publish",
+    '/events/:id/react',
+    async ({ set, params: { id }, body }) => {
+      if (!ndk.signer) {
+        set.status = 401;
+        throw new Error('NDK Signer is required');
+      }
+
+      const event = await ndk.fetchEvent(id, {
+        cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
+      });
+      const reaction = await event?.react(body.content ?? '👍');
+
+      return reaction?.rawEvent();
+    },
+    {
+      body: t.Object({
+        content: t.String(),
+      }),
+    }
+  )
+  .post(
+    '/events/:id/zap',
+    async ({ set, params: { id }, body }) => {
+      if (!ndk.signer) {
+        set.status = 401;
+        throw new Error('NDK Signer is required');
+      }
+
+      const event = await ndk.fetchEvent(id, {
+        cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
+      });
+
+      const invoice = await event?.zap(body.amount, body.message);
+
+      return { invoice: invoice };
+    },
+    {
+      body: t.Object({
+        amount: t.Number(),
+        message: t.String(),
+      }),
+    }
+  )
+  .post(
+    '/events/filter',
+    async ({ set, body }) => {
+      const filter: NDKFilter = JSON.parse(body.filter);
+      const event = await ndk.fetchEvent(filter, {
+        cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
+      });
+
+      if (!event) {
+        set.status = 404;
+        throw new Error('Not found');
+      }
+
+      return event.rawEvent();
+    },
+    {
+      body: t.Object({
+        filter: t.String(),
+      }),
+    }
+  )
+  .post(
+    '/events/publish',
     async ({ set, body }) => {
       if (!ndk.signer) {
         set.status = 401;
-        throw new Error("NDK Signer is required");
+        throw new Error('NDK Signer is required');
       }
 
       const event = new NDKEvent(ndk);
@@ -207,19 +258,19 @@ const app = new Elysia()
 
       if (body.rootReplyTo) {
         const rootEvent = await ndk.fetchEvent(body.rootReplyTo);
-        if (rootEvent) event.tag(rootEvent, "root");
+        if (rootEvent) event.tag(rootEvent, 'root');
       }
 
       if (body.replyTo) {
         const replyEvent = await ndk.fetchEvent(body.replyTo);
-        if (replyEvent) event.tag(replyEvent, "reply");
+        if (replyEvent) event.tag(replyEvent, 'reply');
       }
 
       const publish = await event.publish();
 
       if (!publish) {
         set.status = 500;
-        throw new Error("Failed to publish event");
+        throw new Error('Failed to publish event');
       }
 
       // return total relays has been successfully publish that event
