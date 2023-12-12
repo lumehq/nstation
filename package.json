@@ -1,20 +1,21 @@
 {
-  "name": "nstation",
-  "version": "1.0.50",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
-  },
-  "dependencies": {
-    "@nostr-dev-kit/ndk": "^2.2.0",
-    "@nostr-fetch/adapter-ndk": "^0.13.1",
-    "elysia": "latest",
-    "nostr-fetch": "^0.13.1",
-    "nostr-tools": "^1.17.0"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "1.4.1",
-    "bun-types": "latest"
-  },
-  "module": "src/index.js"
+	"name": "nstation",
+	"version": "1.0.0",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"dev": "bun run --watch src/index.ts"
+	},
+	"dependencies": {
+		"@nostr-dev-kit/ndk": "^2.2.0",
+		"@nostr-fetch/adapter-ndk": "^0.13.1",
+		"elysia": "latest",
+		"lru-cache": "^10.1.0",
+		"nostr-fetch": "^0.13.1",
+		"nostr-tools": "^1.17.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.4.1",
+		"bun-types": "latest"
+	},
+	"module": "src/index.js"
 }
