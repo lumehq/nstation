@@ -1,3 +1,5 @@
+import { NDKEvent } from "@nostr-dev-kit/ndk";
+
 export interface NDKCacheUser {
 	pubkey: string;
 	profile: string | NDKUserProfile;
@@ -24,4 +26,8 @@ export interface NDKCacheEventTag {
 	tag: string;
 	value: string;
 	tagValue: string;
+}
+
+export interface NDKEventWithReplies extends NDKEvent {
+	replies: Array<NDKEvent>;
 }
