@@ -18,20 +18,17 @@ import { getPubkey } from "./utils";
 
 let ndk: NDK;
 let fetcher: NostrFetcher;
+let cacheDir: string;
 
 const FETCH_LIMIT = 20;
 const PORT = 6090;
 
 const app = new Elysia()
 	.onStart(async () => {
-		console.log(Bun.env.CONFIG_DIR);
-		console.log(Bun.env.PUBKEY);
-		console.log(Bun.env.PRIVKEY);
-		console.log(Bun.env.BUNKER);
-		console.log(Bun.env.OUTBOX);
-
 		let db: Database | undefined = undefined;
+
 		if (Bun.env.CONFIG_DIR) {
+			cacheDir = Bun.env.CONFIG_DIR;
 			db = new Database(`${Bun.env.CONFIG_DIR}/lume_v2.db`, {
 				create: false,
 				readonly: false,
@@ -352,7 +349,7 @@ const app = new Elysia()
 		{
 			body: t.Object({
 				amount: t.Number(),
-				message: t.String(),
+				message: t.Optional(t.String()),
 			}),
 		},
 	)
@@ -415,11 +412,11 @@ const app = new Elysia()
 		},
 		{
 			body: t.Object({
-				content: t.String(),
+				content: t.Optional(t.String()),
 				kind: t.Number(),
 				tags: t.Array(t.Array(t.String())),
-				replyTo: t.String(),
-				rootReplyTo: t.String(),
+				replyTo: t.Optional(t.String()),
+				rootReplyTo: t.Optional(t.String()),
 			}),
 		},
 	)
